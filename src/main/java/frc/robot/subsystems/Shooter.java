@@ -92,7 +92,7 @@ public class Shooter extends SubsystemBase {
         .withSimClosedLoopController(ShooterConstants.leftPidSim)
         .withFeedforward(ShooterConstants.leftFeedforwardReal)
         .withSimFeedforward(ShooterConstants.leftFeedforwardSim)
-        .withMotorInverted(false)
+        .withMotorInverted(true)
     ;
     private SmartMotorControllerConfig rightFlywheelConfig = baseFlywheelConfig.clone()
         .withClosedLoopController(ShooterConstants.rightPidReal)

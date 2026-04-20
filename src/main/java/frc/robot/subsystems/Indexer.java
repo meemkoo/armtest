@@ -60,7 +60,7 @@ public class Indexer extends SubsystemBase {
     private SmartMotorControllerConfig ceilingConfig = baseRollerConfig.clone()
         .withGearing(1.2) // 24/20
 
-        .withMotorInverted(true)
+        .withMotorInverted(false)
     
         .withClosedLoopController(IndexerConstants.ceilingPidReal)
         .withSimClosedLoopController(IndexerConstants.ceilingPidSim)
@@ -72,7 +72,7 @@ public class Indexer extends SubsystemBase {
     private SmartMotorControllerConfig kickerConfig = baseRollerConfig.clone()
         .withGearing((double)2/(double)3) // 24/36
 
-        .withMotorInverted(true)
+        .withMotorInverted(false)
     
         .withClosedLoopController(IndexerConstants.kickerPidReal)
         .withSimClosedLoopController(IndexerConstants.kickerPidSim)

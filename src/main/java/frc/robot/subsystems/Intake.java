@@ -47,24 +47,26 @@ public class Intake extends SubsystemBase {
     private SmartMotorControllerConfig pivotSmcConfig = new SmartMotorControllerConfig(this)
         .withGearing(new MechanismGearing(GearBox.fromStages("4:1", "4:1", "12:48")))
 
-        .withClosedLoopController(IntakeContants.pivotPidReal)//, DegreesPerSecond.of(180), DegreesPerSecondPerSecond.of(90))
-        .withClosedLoopController(IntakeContants.pivotPidSim)
+        .withStartingPosition(Degrees.of(0))
+        .withClosedLoopController(40,0,0)//IntakeContants.pivotPidReal) //, DegreesPerSecond.of(180), DegreesPerSecondPerSecond.of(90))
+        // .withClosedLoopController(IntakeContants.pivotPidSim)
 
         .withFeedforward(IntakeContants.pivotFeedforwardReal)
         .withSimFeedforward(IntakeContants.pivotFeedforwardSim)
 
-        .withSoftLimit(Degrees.of(-30), Degrees.of(100))
+        // .withSoftLimit(Degrees.of(10), Degrees.of(-120))
         .withIdleMode(MotorMode.COAST)
         .withTelemetry("IntakePivotMotor", TelemetryVerbosity.HIGH)
         .withStatorCurrentLimit(Amps.of(40))
-        .withMotorInverted(false)
-        .withClosedLoopRampRate(Seconds.of(0.25))
-        .withOpenLoopRampRate(Seconds.of(0.25))
+        .withMotorInverted(true)
+        // .withClosedLoopRampRate(Seconds.of(0.25))
+        // .withOpenLoopRampRate(Seconds.of(0.25))
         .withControlMode(ControlMode.CLOSED_LOOP)
 
+
         .withExternalEncoder(rawCANCoder)
-        .withExternalEncoderInverted(true)
-        .withExternalEncoderGearing(new MechanismGearing(GearBox.fromStages("1:1")))
+        .withExternalEncoderInverted(false)
+        .withExternalEncoderGearing(1)
         .withUseExternalFeedbackEncoder(true)
 
         .withMomentOfInertia(Inches.of(14.724154), Pound.of(7.8858569))
@@ -103,12 +105,13 @@ public class Intake extends SubsystemBase {
     private Optional<PivotState> lastPivotState = Optional.of(PivotState.Medium);
 
     public Intake() {
-        rawCANCoder.getConfigurator().apply(
-            new CANcoderConfiguration().withMagnetSensor(
-                new MagnetSensorConfigs()
-                    .withAbsoluteSensorDiscontinuityPoint(IntakeContants.pivotEncoderDiscontinuityPoint)
-            )
-        );
+
+        // rawCANCoder.getConfigurator().apply(
+        //     new CANcoderConfiguration().withMagnetSensor(
+        //         new MagnetSensorConfigs()
+        //             .withAbsoluteSensorDiscontinuityPoint(IntakeContants.pivotEncoderDiscontinuityPoint)
+        //     )
+        // );
         setDefaultCommand(applyStateCommand());
     }
 

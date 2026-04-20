@@ -97,9 +97,9 @@ public class RobotContainer {
                 brendanCtl::getRightX,
                 brendanCtl::getRightTriggerAxis,
                 () -> Locator.getInstance().hubPose,
-                brendanCtl.leftStick(),
+                brendanCtl.b(),
                 brendanCtl.a(),
-                brendanCtl.b()
+                brendanCtl.leftStick()
             )
         );
 
@@ -119,7 +119,7 @@ public class RobotContainer {
         jesusCtl.leftTrigger().onTrue(intake.setFullStow()).onFalse(intake.leaveFullStow());
         
         // Brendan rin intake: left trigger
-        brendanCtl.leftTrigger();
+        brendanCtl.leftTrigger().onTrue(intake.setRollerState(RollerState.On)).onFalse(intake.setRollerState(RollerState.Off));
         
         // Idle all: povUp
         brendanCtl.povUp().onTrue(

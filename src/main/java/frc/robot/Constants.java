@@ -98,14 +98,14 @@ public class Constants {
         static PIDController  ceilingPidReal = new PIDController(0.01, 0, 0);
         static PIDController ceilingPidSim = new PIDController(0.05, 0, 0);
 
-        static SimpleMotorFeedforward  ceilingFeedforwardReal = new SimpleMotorFeedforward(0, 0.15);
+        static SimpleMotorFeedforward  ceilingFeedforwardReal = new SimpleMotorFeedforward(0, 0.12);
         static SimpleMotorFeedforward  ceilingFeedforwardSim = new SimpleMotorFeedforward(0, 0.1);
 
         
         static PIDController kickerPidReal = new PIDController(0.01, 0, 0);
         static PIDController kickerPidSim = new PIDController(0.05, 0, 0);
 
-        static SimpleMotorFeedforward kickerFeedforwardReal = new SimpleMotorFeedforward(0, 0.15);
+        static SimpleMotorFeedforward kickerFeedforwardReal = new SimpleMotorFeedforward(0, 0.2);
         static SimpleMotorFeedforward kickerFeedforwardSim = new SimpleMotorFeedforward(0, 0.1);
 
     }
@@ -119,7 +119,7 @@ public class Constants {
         static SimpleMotorFeedforward rollerFeedforwardSim = new SimpleMotorFeedforward(0, 0.217, 0);
 
         // Pivot Constants
-        static PIDController pivotPidReal = new PIDController(4, 0, 0);
+        static PIDController pivotPidReal = new PIDController(40, 0, 0);
         static PIDController pivotPidSim = new PIDController(4, 0, 0);
 
         static ArmFeedforward pivotFeedforwardReal = new ArmFeedforward(0, 0, 0, 0);

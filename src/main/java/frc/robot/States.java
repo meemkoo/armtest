@@ -19,7 +19,7 @@ public class States {
 
     public static class Intake {
         public enum PivotState {
-            HihglyStowed(115), Medium(55), FullDeploy(0);
+            HihglyStowed(-115), Medium(-55), FullDeploy(0);
 
             public Angle angle;
 
@@ -49,7 +49,7 @@ public class States {
 
     public static class Indexer {
         public enum TripleRollerStates {
-            On(1000, 1000, 1000), Off(0, 0, 0);
+            On(2377, 4414, 4414), Off(0, 0, 0);
             
             public AngularVelocity floorSpeed;
             public AngularVelocity ceilingSpeed;
