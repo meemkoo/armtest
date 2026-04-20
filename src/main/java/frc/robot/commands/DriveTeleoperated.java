@@ -4,14 +4,17 @@ import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.Locator;
 import frc.robot.generated.TunerConstantsArkelon0416;
 import frc.robot.subsystems.Drivetrain;
 
@@ -89,12 +92,14 @@ public class DriveTeleoperated extends Command {
         } else if (autoAlignTrigger.getAsBoolean()) {
             // We are autoaligning, so use the pointing one
             Rotation2d target_angle = Rotation2d.fromRadians(
-                Math.PI+Math.atan2(
-                    this.hubPose.get().getY()-drivetrain.getPos().getY(),
-                    this.hubPose.get().getX()-drivetrain.getPos().getX()
+                Math.atan2(
+                    drivetrain.getPos().getY()-this.hubPose.get().getY(),
+                    drivetrain.getPos().getX()-this.hubPose.get().getX()
                 )
+            ).rotateBy(
+                Locator.getInstance().hubPointFlipAngle
             );
-            System.out.println(target_angle);
+
             request = drivePointing
                 .withVelocityX(-this.xvelocity.get() * MaxSpeed * this.gasPedal.get())
                 .withVelocityY(-this.yvelocity.get() * MaxSpeed * this.gasPedal.get())

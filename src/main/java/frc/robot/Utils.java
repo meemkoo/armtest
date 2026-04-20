@@ -3,6 +3,11 @@ package frc.robot;
 import edu.wpi.first.wpilibj.Timer;
 
 public interface Utils {
+
+    public enum Direction {
+        Left, Right;
+    }
+
     public static class Acceleration {
         private double last = 0;
         private double current = 0;

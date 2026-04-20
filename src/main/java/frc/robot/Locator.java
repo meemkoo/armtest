@@ -21,6 +21,7 @@ public class Locator {
 
     public boolean hasAppliedAlliance = false;
     public Optional<Alliance> alliance = Optional.empty();
+    public Rotation2d hubPointFlipAngle = Rotation2d.kZero;
 
     public Pose2d hubPose = Constants.hubPoseBlue;
 
@@ -35,7 +36,7 @@ public class Locator {
     }
 
     public void setupPeriodics() {
-        Robot.getInstance().addPeriodic(this::periodicAllianceApplied, 1);
+        Robot.getInstance().addPeriodic(this::periodicAllianceApplied, 0.1);
         Robot.getInstance().addPeriodic(this::periodicSmartDashboard, 0.1);
     }
 
@@ -75,7 +76,7 @@ public class Locator {
         field.setRobotPose(getRobotPose());
     }
 
-    // 1 second
+    // 0.1 second
     public void periodicAllianceApplied() {
         if (!hasAppliedAlliance || DriverStation.isDisabled()) {
             DriverStation.getAlliance().ifPresent(allianceColor -> {
@@ -88,8 +89,15 @@ public class Locator {
                     ? Constants.hubPoseRed : 
                     Constants.hubPoseBlue
             );
+
+            alliance.ifPresent(
+                allianceColor -> hubPointFlipAngle = allianceColor == Alliance.Red 
+                    ? Rotation2d.kZero: 
+                    Rotation2d.k180deg
+            );
+
             SmartDashboard.putString("lookatme", alliance.toString());
-            field.getObject("hubyentoo").setPose(hubPose);
+            field.getObject("hub22").setPose(hubPose);
         }
     }
 }

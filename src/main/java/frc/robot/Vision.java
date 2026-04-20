@@ -141,7 +141,7 @@ public class Vision extends SubsystemBase {
 
     @Override
     public void simulationPeriodic() {
-        visionSim.update(robotPoseFromDrivetrain.get());
+        // visionSim.update(robotPoseFromDrivetrain.get());
     }
 
     @Override
