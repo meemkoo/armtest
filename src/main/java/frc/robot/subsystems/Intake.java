@@ -100,6 +100,8 @@ public class Intake extends SubsystemBase {
     private Optional<PivotState> pivotState = Optional.empty();
     private Optional<RollerState> rollerState = Optional.empty();
 
+    private Optional<PivotState> lastPivotState = Optional.of(PivotState.Medium);
+
     public Intake() {
         rawCANCoder.getConfigurator().apply(
             new CANcoderConfiguration().withMagnetSensor(
@@ -108,6 +110,35 @@ public class Intake extends SubsystemBase {
             )
         );
         setDefaultCommand(applyStateCommand());
+    }
+
+    public Command togglePivot() {
+        return Commands.runOnce(() -> {
+            if (pivotState.isEmpty()) {
+                pivotState = Optional.of(PivotState.Medium);
+            }
+
+            if (pivotState.get() == PivotState.FullDeploy) {
+                pivotState = Optional.of(PivotState.Medium);
+            } else if (pivotState.get() == PivotState.Medium) {
+                pivotState = Optional.of(PivotState.FullDeploy);
+            } else if (pivotState.get() == PivotState.HihglyStowed) {
+                pivotState = lastPivotState;
+            }
+            lastPivotState = pivotState;
+        });
+    }
+
+    public Command setFullStow() {
+        return Commands.runOnce(() -> {
+            pivotState = Optional.of(PivotState.HihglyStowed);
+        });
+    }
+
+    public Command leaveFullStow() {
+        return Commands.runOnce(() -> {
+            pivotState = lastPivotState;
+        });
     }
 
     public Command applyStateCommand() {

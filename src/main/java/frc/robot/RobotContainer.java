@@ -12,11 +12,15 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.States.Indexer.TripleRollerStates;
+import frc.robot.States.Intake.RollerState;
+import frc.robot.States.Shooter.FlywheelStates;
 import frc.robot.commands.DriveTeleoperated;
 import frc.robot.generated.TunerConstantsArkelon0416;
 import frc.robot.subsystems.Drivetrain;
@@ -33,50 +37,76 @@ public class RobotContainer {
         return instance;
     }
 
-    private final CommandXboxController driverCtl = new CommandXboxController(0);
-    private final CommandXboxController coDriverCtl = new CommandXboxController(1);
+    private final CommandXboxController brendanCtl = new CommandXboxController(0);
+    private final CommandXboxController jesusCtl = new CommandXboxController(1);
 
     private Intake intake = new Intake(); 
     private Indexer indexer = new Indexer();
     private Shooter shooter = new Shooter(() -> Degrees.of(SmartDashboard.getNumber("testAngle", 20)), 
                                           () -> RPM.of(SmartDashboard.getNumber("testRpm", 3000)));
     private Drivetrain drivetrain = TunerConstantsArkelon0416.createDrivetrain();
+    
     public Locator locator;
+    private Vision vision;
 
     public RobotContainer() {
         locator = new Locator(drivetrain::getPos, drivetrain);
+        vision = new Vision(drivetrain::addVisionMeasurement, drivetrain::getPos);
+
         drivetrain.registerTelemetry(Logging.getInstance()::logCTREChassis);
 
         SmartDashboard.putNumber("testAngle", 20);
         SmartDashboard.putNumber("testRpm", 3000);
+
         configureBindings();
     }
 
     private void configureBindings() {
         drivetrain.setDefaultCommand(
             new DriveTeleoperated(drivetrain,
-                driverCtl::getLeftY,
-                driverCtl::getLeftX,
-                driverCtl::getRightX,
-                driverCtl::getRightTriggerAxis,
+                brendanCtl::getLeftY,
+                brendanCtl::getLeftX,
+                brendanCtl::getRightX,
+                brendanCtl::getRightTriggerAxis,
                 () -> Locator.getInstance().hubPose,
-                driverCtl.leftStick(),
-                driverCtl.a(),
-                driverCtl.b()
+                brendanCtl.leftStick(),
+                brendanCtl.a(),
+                brendanCtl.b()
             )
         );
 
         // Brendan shoot is: x
         // Brendan intake up/down NORMAL is: leftBumper
+        brendanCtl.leftBumper().onTrue(intake.togglePivot());
+        jesusCtl.leftTrigger().onTrue(intake.setFullStow()).onFalse(intake.leaveFullStow());
+        
         // Brendan rin intake: left trigger
-        // For my you asked me what i wanted my loc kpose on right? Oh i already did that! Yep yep okay for my all wheels pointing forwards
-        // I want that to be on B
+        brendanCtl.leftTrigger();
+        
         // Idle all: povUp
+        brendanCtl.povUp().onTrue(
+            Commands.parallel(
+                intake.setRollerState(RollerState.Off),
+                indexer.setState(TripleRollerStates.Off),
+                shooter.setFlywheelState(FlywheelStates.Frozen)
+            )
+        );
+        
         // Reset odometry: povDown
+        // TODO: Make it reset to tower pose
+        brendanCtl.povDown().onTrue(Commands.runOnce(() -> drivetrain.resetPose(new Pose2d())));
+        
         // Toggle vision: povRight
+        brendanCtl.povRight().onTrue(Commands.runOnce(() -> {
+            if (vision.usePose == true) {
+                vision.usePose = false;
+            } else {
+                vision.usePose = true;
+            }
+        }));
+
         // Keep flywheel spun up while holding: rightBumper
         // Reverse intake povLeft
-        // 
     }
 
     public Command getAutonomousCommand() {
