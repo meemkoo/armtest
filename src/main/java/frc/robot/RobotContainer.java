@@ -27,6 +27,7 @@ import frc.robot.States.Indexer.TripleRollerStates;
 import frc.robot.States.Intake.RollerState;
 import frc.robot.States.Shooter.FlywheelStates;
 import frc.robot.States.Shooter.HoodState;
+import frc.robot.commands.Auton;
 import frc.robot.commands.DriveTeleoperated;
 import frc.robot.generated.TunerConstantsArkelon0416;
 import frc.robot.subsystems.Drivetrain;
@@ -59,6 +60,8 @@ public class RobotContainer {
     public Locator locator;
     private Vision vision;
 
+    public Auton auto;
+
     public RobotContainer() {
         locator = new Locator(drivetrain::getPos, drivetrain);
         vision = new Vision(drivetrain::addVisionMeasurement, drivetrain::getPos);
@@ -66,6 +69,8 @@ public class RobotContainer {
         drivetrain.registerTelemetry(Logging.getInstance()::logCTREChassis);
 
         Robot.getInstance().addPeriodic(this::calculateShooterDistance, 0.02);
+        
+        auto = new Auton(drivetrain, shooter, indexer, intake, this, vision);
         configureBindings();
     }
 

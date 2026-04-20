@@ -77,8 +77,9 @@ public class Auton {
             true,
             this.drivetrain
         );
-        
+
         autoChooser.addCmd("Do nothing", Commands::none);
+        autoChooser.addRoutine("Outpost", this::outpost);
 
         SmartDashboard.putData("Auton Selector", autoChooser);
         SmartDashboard.putBoolean("astop", false);
@@ -93,5 +94,20 @@ public class Auton {
                 Commands.runOnce(() -> CommandScheduler.getInstance().cancelAll())
                     .alongWith(Commands.runOnce(() -> vision.usePose = true))
             );
+    }
+
+    public AutoRoutine outpost() {
+        var routine = autoFactory.newRoutine("outpost");
+
+        var outpost = routine.trajectory("outpost");
+
+        routine.active().onTrue(
+            Commands.sequence(
+                outpost.resetOdometry(),
+                outpost.cmd()
+            )
+        );
+
+        return routine;
     }
 }
