@@ -5,15 +5,20 @@
 package frc.robot;
 
 import static edu.wpi.first.units.Units.Degrees;
+import static edu.wpi.first.units.Units.Inches;
+import static edu.wpi.first.units.Units.Meters;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 
+import java.util.function.Supplier;
+
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -21,6 +26,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.States.Indexer.TripleRollerStates;
 import frc.robot.States.Intake.RollerState;
 import frc.robot.States.Shooter.FlywheelStates;
+import frc.robot.States.Shooter.HoodState;
 import frc.robot.commands.DriveTeleoperated;
 import frc.robot.generated.TunerConstantsArkelon0416;
 import frc.robot.subsystems.Drivetrain;
@@ -40,10 +46,14 @@ public class RobotContainer {
     private final CommandXboxController brendanCtl = new CommandXboxController(0);
     private final CommandXboxController jesusCtl = new CommandXboxController(1);
 
+    public Distance shooterDistance = Meters.of(0);
+    public Supplier<Distance> getShooterDistance = () -> shooterDistance;
+
     private Intake intake = new Intake(); 
     private Indexer indexer = new Indexer();
-    private Shooter shooter = new Shooter(() -> Degrees.of(SmartDashboard.getNumber("testAngle", 20)), 
-                                          () -> RPM.of(SmartDashboard.getNumber("testRpm", 3000)));
+    private Shooter shooter = new Shooter(() -> Shooter.calculateHoodAngle(getShooterDistance.get()), 
+                                          () -> Shooter.calculateFlywheelSpeed(getShooterDistance.get())
+                                        );
     private Drivetrain drivetrain = TunerConstantsArkelon0416.createDrivetrain();
     
     public Locator locator;
@@ -55,10 +65,23 @@ public class RobotContainer {
 
         drivetrain.registerTelemetry(Logging.getInstance()::logCTREChassis);
 
-        SmartDashboard.putNumber("testAngle", 20);
-        SmartDashboard.putNumber("testRpm", 3000);
-
+        Robot.getInstance().addPeriodic(this::calculateShooterDistance, 0.02);
         configureBindings();
+    }
+
+    public void calculateShooterDistance() {
+        shooterDistance = Locator.getInstance().getDistanceToHub() // Robot center distance from hub
+            .plus(Inches.of(5.4330709)) // Center to fuel exit
+        ;
+    }
+
+    public Command shootDialed() {
+        return Commands.sequence(
+            shooter.setFlywheelState(FlywheelStates.Varying),
+            shooter.setHoodState(HoodState.Varying),
+            Commands.waitSeconds(0.05).andThen(Commands.waitUntil(shooter.flywheelsAtAccel)),
+            indexer.setState(TripleRollerStates.On)
+        );
     }
 
     private void configureBindings() {
@@ -76,6 +99,16 @@ public class RobotContainer {
         );
 
         // Brendan shoot is: x
+        brendanCtl.x().whileTrue(
+            shootDialed()
+        ).onFalse(
+            Commands.sequence(
+                shooter.setFlywheelState(FlywheelStates.Frozen),
+                shooter.setHoodState(HoodState.Frozen),
+                indexer.setState(TripleRollerStates.Off)
+            )
+        );
+        
         // Brendan intake up/down NORMAL is: leftBumper
         brendanCtl.leftBumper().onTrue(intake.togglePivot());
         jesusCtl.leftTrigger().onTrue(intake.setFullStow()).onFalse(intake.leaveFullStow());

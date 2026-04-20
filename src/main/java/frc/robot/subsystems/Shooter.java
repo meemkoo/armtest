@@ -3,6 +3,7 @@ package frc.robot.subsystems;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.Pair;
 import edu.wpi.first.math.system.plant.DCMotor;
@@ -13,10 +14,14 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.Constants;
 import frc.robot.Constants.CANIds;
 import frc.robot.Constants.ShooterConstants;
+import frc.robot.Locator;
 import frc.robot.States.Shooter.FlywheelStates;
 import frc.robot.States.Shooter.HoodState;
+import frc.robot.Utils.Acceleration;
 import yams.gearing.GearBox;
 import yams.gearing.MechanismGearing;
 import yams.motorcontrollers.SmartMotorController;
@@ -28,7 +33,9 @@ import yams.motorcontrollers.local.SparkWrapper;
 import yams.motorcontrollers.remote.TalonFXWrapper;
 
 import static edu.wpi.first.units.Units.Amps;
+import static edu.wpi.first.units.Units.Degree;
 import static edu.wpi.first.units.Units.Degrees;
+import static edu.wpi.first.units.Units.Feet;
 import static edu.wpi.first.units.Units.Inches;
 import static edu.wpi.first.units.Units.KilogramSquareMeters;
 import static edu.wpi.first.units.Units.Pounds;
@@ -68,6 +75,7 @@ public class Shooter extends SubsystemBase {
     ;
 
     private SmartMotorControllerConfig baseFlywheelConfig = new SmartMotorControllerConfig(this)
+        // TODO: delete the crappy rev filter times .withVendorConfig(new SparkMaxConfig().apply())
         .withControlMode(ControlMode.CLOSED_LOOP)
         .withGearing(new MechanismGearing(GearBox.fromReductionStages(1, 1)))
         .withIdleMode(MotorMode.COAST)
@@ -99,6 +107,12 @@ public class Shooter extends SubsystemBase {
 
     private SmartMotorController leftMotor = new SparkWrapper(rawLeftMotor, DCMotor.getNEO(1), leftFlywheelConfig);
     private SmartMotorController rightMotor = new SparkWrapper(rawRightMotor, DCMotor.getNEO(1), rightFlywheelConfig);
+
+    public Acceleration leftAcceleration = new Acceleration(0);
+    public Acceleration rightAcceleration = new Acceleration(0);
+    public Trigger flywheelsAtAccel = new Trigger(() -> {
+        return leftAcceleration.getAccel() < 1000 && rightAcceleration.getAccel() < 1000;
+    }).debounce(0.05);
 
     private Optional<HoodState> hoodState = Optional.of(HoodState.Frozen);
     private Optional<FlywheelStates> flywheelStates = Optional.of(FlywheelStates.Frozen);
@@ -143,6 +157,11 @@ public class Shooter extends SubsystemBase {
         return Commands.runOnce(() -> this.flywheelStates = Optional.of(flywheelStates));
     }
 
+    public void updateAcceleration() {
+        leftAcceleration.update(leftMotor.getMechanismVelocity().in(RPM));
+        rightAcceleration.update(rightMotor.getMechanismVelocity().in(RPM));
+    }
+
     @Override
     public void periodic() {
         hoodState.ifPresent(state -> SmartDashboard.putString("shooterHood/State", state.toString()));
@@ -163,11 +182,69 @@ public class Shooter extends SubsystemBase {
         rightMotor.simIterate();
     }
 
-    public static Angle calculateHoodAngle() {
-        return Degrees.of(0);
+    public static Angle calculateHoodAngle(Distance shooterDistToHub) {
+        // var shooterDistToHub = 
+        //     Locator.getInstance().getDistanceToHub() // Robot center distance from hub
+        //     .plus(Inches.of(5.4330709)) // Center to fuel exit
+        // ;
+        var angleTable = Constants.ShooterConstants.ShotTable.distanceAngleTable;
+
+        double angleOut = 15; // Default
+        if (shooterDistToHub.lt(angleTable.get(0).getFirst())) {
+            angleOut = Constants.ShooterConstants.minHoodAngle.in(Degrees);
+        }
+
+        if (shooterDistToHub.gt(angleTable.get(angleTable.size()-1).getFirst())) {
+            angleOut = Constants.ShooterConstants.maxHoodAngle.in(Degrees);
+        }
+
+        for (int i = 0; i < Constants.ShooterConstants.ShotTable.distanceAngleTable.size()-1; i++) {
+            if (shooterDistToHub.gte(angleTable.get(i).getFirst()) && 
+                shooterDistToHub.lte(angleTable.get(i+1).getFirst())
+            ) {
+                var x1 = angleTable.get(i).getFirst().in(Feet);
+                var x2 = angleTable.get(i+1).getFirst().in(Feet);
+                var y1 = angleTable.get(i).getSecond();
+                var y2 = angleTable.get(i+1).getSecond();
+
+                var m = (y2 - y1) / (x2 - x1);
+                var b = y1 - m * x1;
+                angleOut = m * shooterDistToHub.in(Feet) + b;
+            }
+        }
+
+        return Degrees.of(angleOut);
     }
 
-    public static AngularVelocity calculateFlywheelSpeed() {
-        return RPM.of(0);
+    public static AngularVelocity calculateFlywheelSpeed(Distance shooterDistToHub) {
+        var angleTable = Constants.ShooterConstants.ShotTable.distanceAngleTable;
+        var speedTable = Constants.ShooterConstants.ShotTable.distanceSpeedTable;
+
+        
+        double speedOut = 4000;
+        if (shooterDistToHub.lt(speedTable.get(0).getFirst())) {
+            speedOut = 31;
+        }
+
+        if (shooterDistToHub.gt(speedTable.get(angleTable.size()-1).getFirst())) {
+            speedOut = 3100;
+        }
+
+        for (int i = 0; i < Constants.ShooterConstants.ShotTable.distanceAngleTable.size()-1; i++) {
+            if (shooterDistToHub.gte(speedTable.get(i).getFirst()) && 
+                shooterDistToHub.lte(speedTable.get(i+1).getFirst())
+            ) {
+                var x1 = speedTable.get(i).getFirst().in(Feet);
+                var x2 = speedTable.get(i+1).getFirst().in(Feet);
+                var y1 = speedTable.get(i).getSecond();
+                var y2 = speedTable.get(i+1).getSecond();
+
+                var m = (y2 - y1) / (x2 - x1);
+                var b = y1 - m * x1;
+                speedOut = m * shooterDistToHub.in(Feet) + b;
+            }
+        }
+
+        return RPM.of(speedOut);
     }
 }

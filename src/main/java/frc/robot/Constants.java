@@ -1,13 +1,20 @@
 package frc.robot;
 
+import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.Inches;
+import static edu.wpi.first.units.Units.Meters;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import edu.wpi.first.math.Pair;
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
 
 public class Constants {
@@ -38,6 +45,27 @@ public class Constants {
     }
 
     public interface ShooterConstants {
+        static Angle maxHoodAngle = Degrees.of(40);
+        static Angle minHoodAngle = Degrees.of(12.667292);
+        
+        // Shot table
+        public class ShotTable {
+            public static final List<Pair<Distance, Double>> distanceAngleTable = new ArrayList<>();
+            public static final List<Pair<Distance, Double>> distanceSpeedTable = new ArrayList<>();
+
+            static {
+                // Distance Angle
+                distanceAngleTable.add(Pair.of(Meters.of(1.36), 20.0-2.5));
+                distanceAngleTable.add(Pair.of(Meters.of(5.86), 40.0-2.5));
+
+                // Distance Speed
+                distanceSpeedTable.add(Pair.of(Meters.of(1.36), 2400.0+(2400*0.05)));
+                distanceSpeedTable.add(Pair.of(Meters.of(5.86), 3960.0+(3960*0.05)));
+                
+            }
+        }
+
+        // PID and FF
         static PIDController hoodPidReal = new PIDController(530, 0, 0);
         static PIDController hoodPidSim = new PIDController(5, 0, 0);
 
