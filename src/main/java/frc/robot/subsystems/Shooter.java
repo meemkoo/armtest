@@ -1,0 +1,173 @@
+package frc.robot.subsystems;
+
+import com.ctre.phoenix6.hardware.TalonFX;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+
+import edu.wpi.first.math.Pair;
+import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.CANIds;
+import frc.robot.Constants.ShooterConstants;
+import frc.robot.States.Shooter.FlywheelStates;
+import frc.robot.States.Shooter.HoodState;
+import yams.gearing.GearBox;
+import yams.gearing.MechanismGearing;
+import yams.motorcontrollers.SmartMotorController;
+import yams.motorcontrollers.SmartMotorControllerConfig;
+import yams.motorcontrollers.SmartMotorControllerConfig.ControlMode;
+import yams.motorcontrollers.SmartMotorControllerConfig.MotorMode;
+import yams.motorcontrollers.SmartMotorControllerConfig.TelemetryVerbosity;
+import yams.motorcontrollers.local.SparkWrapper;
+import yams.motorcontrollers.remote.TalonFXWrapper;
+
+import static edu.wpi.first.units.Units.Amps;
+import static edu.wpi.first.units.Units.Degrees;
+import static edu.wpi.first.units.Units.Inches;
+import static edu.wpi.first.units.Units.KilogramSquareMeters;
+import static edu.wpi.first.units.Units.Pounds;
+import static edu.wpi.first.units.Units.RPM;
+import static frc.robot.Constants.CANIds;
+import static frc.robot.Constants.ShooterConstants;
+import static frc.robot.States.Shooter.HoodState;
+import static frc.robot.States.Shooter.FlywheelStates;
+
+import java.util.Optional;
+import java.util.function.Supplier;
+
+public class Shooter extends SubsystemBase {
+    private TalonFX rawHoodMotor = new TalonFX(CANIds.shooterHoodMotor);
+    private SparkMax rawLeftMotor = new SparkMax(CANIds.shooterLeftMotor, MotorType.kBrushless);
+    private SparkMax rawRightMotor = new SparkMax(CANIds.shooterRightMotor, MotorType.kBrushless);
+
+    private SmartMotorControllerConfig hoodConfig = new SmartMotorControllerConfig(this)
+        .withStatorCurrentLimit(Amps.of(50))
+        .withSupplyCurrentLimit(Amps.of(40))
+
+        .withIdleMode(MotorMode.COAST)
+
+        .withGearing(new MechanismGearing(GearBox.fromStages("48:12", "182:10")))
+        .withControlMode(ControlMode.CLOSED_LOOP)
+
+        .withClosedLoopController(ShooterConstants.hoodPidReal)
+        .withSimClosedLoopController(ShooterConstants.hoodPidSim)
+        .withFeedforward(ShooterConstants.hoodFeedforwardReal)
+        .withSimFeedforward(ShooterConstants.hoodFeedforwardSim)
+
+        .withMotorInverted(true)
+        .withStartingPosition(Degrees.of(12.667292))
+        .withMomentOfInertia(KilogramSquareMeters.of(0.0190245794))
+        
+        .withTelemetry("shooterHood", TelemetryVerbosity.HIGH)
+    ;
+
+    private SmartMotorControllerConfig baseFlywheelConfig = new SmartMotorControllerConfig(this)
+        .withControlMode(ControlMode.CLOSED_LOOP)
+        .withGearing(new MechanismGearing(GearBox.fromReductionStages(1, 1)))
+        .withIdleMode(MotorMode.COAST)
+        .withStatorCurrentLimit(Amps.of(60))
+
+        // .withClosedLoopRampRate(Seconds.of(0.25))
+        // .withOpenLoopRampRate(Seconds.of(0.25))
+
+        .withMomentOfInertia(Inches.of(1.9825395), Pounds.of(0.9))
+    ;
+
+    private SmartMotorControllerConfig leftFlywheelConfig = baseFlywheelConfig.clone()
+        .withClosedLoopController(ShooterConstants.leftPidReal)
+        .withSimClosedLoopController(ShooterConstants.leftPidSim)
+        .withFeedforward(ShooterConstants.leftFeedforwardReal)
+        .withSimFeedforward(ShooterConstants.leftFeedforwardSim)
+        .withMotorInverted(false)
+    ;
+    private SmartMotorControllerConfig rightFlywheelConfig = baseFlywheelConfig.clone()
+        .withClosedLoopController(ShooterConstants.rightPidReal)
+        .withSimClosedLoopController(ShooterConstants.rightPidSim)
+        .withFeedforward(ShooterConstants.rightFeedforwardReal)
+        .withSimFeedforward(ShooterConstants.rightFeedforwardSim)
+        .withMotorInverted(false)
+    ;
+
+
+    private SmartMotorController hoodMotor = new TalonFXWrapper(rawHoodMotor, DCMotor.getKrakenX60(1), hoodConfig);
+
+    private SmartMotorController leftMotor = new SparkWrapper(rawLeftMotor, DCMotor.getNEO(1), leftFlywheelConfig);
+    private SmartMotorController rightMotor = new SparkWrapper(rawRightMotor, DCMotor.getNEO(1), rightFlywheelConfig);
+
+    private Optional<HoodState> hoodState = Optional.of(HoodState.Frozen);
+    private Optional<FlywheelStates> flywheelStates = Optional.of(FlywheelStates.Frozen);
+
+    private Supplier<Angle> hoodAngleSupplier;
+    private Supplier<AngularVelocity> flywheelSpeedSupplier;
+
+    public Shooter(Supplier<Angle> hoodAngleSupplier, Supplier<AngularVelocity> flywheelSpeedSupplier) {
+        this.hoodAngleSupplier = hoodAngleSupplier;
+        this.flywheelSpeedSupplier = flywheelSpeedSupplier;
+        setDefaultCommand(applyStateCommand());
+    }
+
+    public Command applyStateCommand() {
+        return run(() -> {
+            hoodState.ifPresent(state -> {
+                if (state==HoodState.Frozen) {
+                    hoodMotor.setDutyCycle(0);
+                } else {
+                    hoodMotor.setPosition(hoodAngleSupplier.get());
+                }
+            });
+
+            flywheelStates.ifPresent(state -> {
+                if (state==FlywheelStates.Frozen) {
+                    leftMotor.setDutyCycle(0);
+                    rightMotor.setDutyCycle(0);
+                } else {
+                    leftMotor.setVelocity(flywheelSpeedSupplier.get());
+                    rightMotor.setVelocity(flywheelSpeedSupplier.get());
+                }
+            });
+
+        });
+    }
+
+    public Command setHoodState(HoodState hoodState) {
+        return Commands.runOnce(() -> this.hoodState = Optional.of(hoodState));
+    }
+
+    public Command setFlywheelState(FlywheelStates flywheelStates) {
+        return Commands.runOnce(() -> this.flywheelStates = Optional.of(flywheelStates));
+    }
+
+    @Override
+    public void periodic() {
+        hoodState.ifPresent(state -> SmartDashboard.putString("shooterHood/State", state.toString()));
+        flywheelStates.ifPresent(state -> SmartDashboard.putString("shooterFlywheels/State", state.toString()));
+
+        SmartDashboard.putNumber("shooterHood/RotorAngle", hoodMotor.getRotorPosition().in(Degrees));
+        SmartDashboard.putNumber("shooterHood/MechanisimAngle", hoodMotor.getMechanismPosition().in(Degrees));
+
+        SmartDashboard.putNumber("shooterFlywheels/leftMechanisimSpeed", leftMotor.getMechanismVelocity().in(RPM));
+
+        SmartDashboard.putNumber("shooterFlywheels/rightMechanisimSpeed", rightMotor.getMechanismVelocity().in(RPM));
+    }
+
+    @Override
+    public void simulationPeriodic() {
+        hoodMotor.simIterate();
+        leftMotor.simIterate();
+        rightMotor.simIterate();
+    }
+
+    public static Angle calculateHoodAngle() {
+        return Degrees.of(0);
+    }
+
+    public static AngularVelocity calculateFlywheelSpeed() {
+        return RPM.of(0);
+    }
+}
