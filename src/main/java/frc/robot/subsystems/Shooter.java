@@ -3,6 +3,9 @@ package frc.robot.subsystems;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.config.ClosedLoopConfig;
+import com.revrobotics.spark.config.EncoderConfig;
+import com.revrobotics.spark.config.SparkBaseConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.Pair;
@@ -19,6 +22,7 @@ import frc.robot.Constants;
 import frc.robot.Constants.CANIds;
 import frc.robot.Constants.ShooterConstants;
 import frc.robot.Locator;
+import frc.robot.Robot;
 import frc.robot.States.Shooter.FlywheelStates;
 import frc.robot.States.Shooter.HoodState;
 import frc.robot.Utils.Acceleration;
@@ -75,14 +79,11 @@ public class Shooter extends SubsystemBase {
     ;
 
     private SmartMotorControllerConfig baseFlywheelConfig = new SmartMotorControllerConfig(this)
-        // TODO: delete the crappy rev filter times .withVendorConfig(new SparkMaxConfig().apply())
+        .withVendorConfig(Constants.MotorConfigs.noBadFilteringNEO)
         .withControlMode(ControlMode.CLOSED_LOOP)
         .withGearing(new MechanismGearing(GearBox.fromReductionStages(1, 1)))
         .withIdleMode(MotorMode.COAST)
         .withStatorCurrentLimit(Amps.of(60))
-
-        // .withClosedLoopRampRate(Seconds.of(0.25))
-        // .withOpenLoopRampRate(Seconds.of(0.25))
 
         .withMomentOfInertia(Inches.of(1.9825395), Pounds.of(0.9))
     ;
@@ -111,7 +112,7 @@ public class Shooter extends SubsystemBase {
     public Acceleration leftAcceleration = new Acceleration(0);
     public Acceleration rightAcceleration = new Acceleration(0);
     public Trigger flywheelsAtAccel = new Trigger(() -> {
-        return leftAcceleration.getAccel() < 1000 && rightAcceleration.getAccel() < 1000;
+        return leftAcceleration.getAccel() < 950 && rightAcceleration.getAccel() < 950;
     }).debounce(0.05);
 
     private Optional<HoodState> hoodState = Optional.of(HoodState.Frozen);
@@ -123,6 +124,7 @@ public class Shooter extends SubsystemBase {
     public Shooter(Supplier<Angle> hoodAngleSupplier, Supplier<AngularVelocity> flywheelSpeedSupplier) {
         this.hoodAngleSupplier = hoodAngleSupplier;
         this.flywheelSpeedSupplier = flywheelSpeedSupplier;
+        Robot.getInstance().addPeriodic(this::updateAcceleration, 0.02);
         setDefaultCommand(applyStateCommand());
     }
 
@@ -173,6 +175,9 @@ public class Shooter extends SubsystemBase {
         SmartDashboard.putNumber("shooterFlywheels/leftMechanisimSpeed", leftMotor.getMechanismVelocity().in(RPM));
 
         SmartDashboard.putNumber("shooterFlywheels/rightMechanisimSpeed", rightMotor.getMechanismVelocity().in(RPM));
+
+        SmartDashboard.putNumber("flywheelsAtAccel", flywheelsAtAccel.getAsBoolean() ? 3000 : 1000);
+        SmartDashboard.putNumber("flywheelAccel", leftAcceleration.getAccel());
     }
 
     @Override

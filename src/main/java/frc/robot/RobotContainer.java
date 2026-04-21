@@ -84,7 +84,7 @@ public class RobotContainer {
         return Commands.sequence(
             shooter.setFlywheelState(FlywheelStates.Varying),
             shooter.setHoodState(HoodState.Varying),
-            Commands.waitSeconds(0.05).andThen(Commands.waitUntil(shooter.flywheelsAtAccel)),
+            Commands.waitSeconds(0.1).andThen(Commands.waitUntil(shooter.flywheelsAtAccel)),
             indexer.setState(TripleRollerStates.On)
         );
     }

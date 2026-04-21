@@ -32,6 +32,11 @@ import frc.robot.Constants;
 import frc.robot.Locator;
 import frc.robot.RobotContainer;
 import frc.robot.Vision;
+import frc.robot.States.Indexer.TripleRollerStates;
+import frc.robot.States.Intake.PivotState;
+import frc.robot.States.Intake.RollerState;
+import frc.robot.States.Shooter.FlywheelStates;
+import frc.robot.States.Shooter.HoodState;
 import frc.robot.subsystems.Drivetrain;
 import frc.robot.subsystems.Indexer;
 import frc.robot.subsystems.Intake;
@@ -79,7 +84,7 @@ public class Auton {
         );
 
         autoChooser.addCmd("Do nothing", Commands::none);
-        autoChooser.addRoutine("Outpost", this::outpost);
+        autoChooser.addRoutine("xbump", this::crossBump);
 
         SmartDashboard.putData("Auton Selector", autoChooser);
         SmartDashboard.putBoolean("astop", false);
@@ -96,15 +101,52 @@ public class Auton {
             );
     }
 
-    public AutoRoutine outpost() {
+    public AutoRoutine crossBump() {
         var routine = autoFactory.newRoutine("outpost");
 
-        var outpost = routine.trajectory("outpost");
+        var part1 = routine.trajectory("xbump_part1");
+        var part2 = routine.trajectory("xbump_part2");
+        var part3 = routine.trajectory("xbump_part3");
 
         routine.active().onTrue(
             Commands.sequence(
-                outpost.resetOdometry(),
-                outpost.cmd()
+                part1.resetOdometry(),
+                intake.setPivotState(PivotState.Medium),
+                part1.cmd(),
+                drivetrain.goToPoseCommand(() -> part2.getInitialPose().get())
+                    .until(drivetrain.isAtPoseSetpoint),
+                Commands.sequence(
+                    intake.setPivotState(PivotState.FullDeploy),
+                    intake.setRollerState(RollerState.Off)
+                ),
+                part2.cmd()
+            )
+        );
+
+        part2.inactive().onTrue(
+            Commands.sequence(
+                Commands.parallel(
+                    rcontainer.shootDialed(),
+                    Commands.waitSeconds(1)
+                        .andThen(intake.setPivotState(PivotState.FullDeploy))
+                        .andThen(intake.setRollerState(RollerState.On))
+                ),
+                Commands.waitSeconds(5),
+                Commands.sequence(
+                    intake.setPivotState(PivotState.Medium),
+                    intake.setRollerState(RollerState.Off),
+                    indexer.setState(TripleRollerStates.Off),
+                    shooter.setFlywheelState(FlywheelStates.Frozen),
+                    shooter.setHoodState(HoodState.Frozen)
+                ),
+                part3.cmd()
+            )
+        );
+
+        part1.atTime("DeployIntake").onTrue(
+            Commands.sequence(
+                intake.setPivotState(PivotState.FullDeploy),
+                intake.setRollerState(RollerState.On)
             )
         );
 

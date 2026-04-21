@@ -7,6 +7,10 @@ import static edu.wpi.first.units.Units.Meters;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.revrobotics.spark.config.EncoderConfig;
+import com.revrobotics.spark.config.SparkBaseConfig;
+import com.revrobotics.spark.config.SparkMaxConfig;
+
 import edu.wpi.first.math.Pair;
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.controller.PIDController;
@@ -27,6 +31,18 @@ public class Constants {
             fieldLength.div(2),
             fieldWidth.div(2)
         ), Rotation2d.fromDegrees(180));
+
+    public interface MotorConfigs {
+        public SparkBaseConfig noBadFilteringNEO = new SparkMaxConfig()
+            // TODO: Tune these value for real, currently i just pulled them from the CD thread (thanks Phil)
+            // https://www.chiefdelphi.com/t/psa-rev-spark-default-velocity-filtering-is-still-really-bad-for-flywheels/514567/4
+            .apply(new EncoderConfig()
+                .quadratureAverageDepth(2)
+                .quadratureMeasurementPeriod(10)
+            )
+        ;
+        
+    }
         
     public interface CANIds {
         // For all CANId < 20: Reserved for drivetrain
